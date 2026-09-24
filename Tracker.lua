@@ -137,7 +137,7 @@ local function specID()
     local getSpec = C_SpecializationInfo and C_SpecializationInfo.GetSpecialization or GetSpecialization
     local getInfo = C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfo or GetSpecializationInfo
     local index = getSpec and getSpec()
-    return index and getInfo and (getInfo(index))
+    return index and getInfo and getInfo(index)
 end
 
 local frame = CreateFrame("Frame")
@@ -168,6 +168,11 @@ local function updateEligibility()
     setCombat(UnitAffectingCombat("player"))
 end
 
+local function isPlateUnit(unit)
+    if type(unit) ~= "string" then return false end
+    return unit:match("^nameplate%d+$") ~= nil
+end
+
 local handlers = {
     PLAYER_ENTERING_WORLD = function()
         updateEligibility()
@@ -181,12 +186,19 @@ local handlers = {
         queueScan()
     end,
     NAME_PLATE_UNIT_ADDED   = queueScan,
-    UNIT_FLAGS              = queueScan,
-    UNIT_THREAT_LIST_UPDATE = queueScan,
+    UNIT_FLAGS              = function(unit)
+        if isPlateUnit(unit) then queueScan() end
+    end,
+    UNIT_THREAT_LIST_UPDATE = function(unit)
+        if isPlateUnit(unit) then queueScan() end
+    end,
 }
 
 frame:SetScript("OnEvent", function(_, event, ...)
-    ns:CallSafe(handlers[event], ...)
+    local handler = handlers[event]
+    if handler then
+        ns:CallSafe(handler, ...)
+    end
 end)
 
 function M:RefreshUnits()

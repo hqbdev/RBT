@@ -204,25 +204,68 @@ local function addBleedGroup(ring, container)
     })
 end
 
-local function createChain(ring)
-    if not HAS_AURA_CONTAINERS then return false end
+local function reanchorTails(ring)
+    local lastLink = ring.chain and ring.chain[#ring.chain]
+    if not lastLink then return end
+    ring.arcTail:ClearAllPoints()
+    ring.arcTail:SetPoint("TOPLEFT", lastLink, "TOPRIGHT", 0, 0)
+    ring.labelTail:ClearAllPoints()
+    ring.labelTail:SetPoint("TOPLEFT", lastLink, "TOPRIGHT", 0, 0)
+end
 
-    local chain = {}
-    for i = 1, ns.CHAIN_LENGTH do
-        chain[i] = createChainLink(ring, chain[i - 1])
+local function buildChainAsync(ring, onComplete)
+    if not HAS_AURA_CONTAINERS then
+        ring.chain = nil
+        ring.chainReady = true
+        if onComplete then onComplete() end
+        return
     end
-    for i = ns.CHAIN_LENGTH, 1, -1 do
-        addBleedGroup(ring, chain[i])
+
+    ring.chain = {}
+    ring.chainReady = false
+
+    local CHUNK      = 8
+    local linkIndex  = 0
+    local groupIndex = ns.CHAIN_LENGTH + 1
+
+    local phaseA, phaseB
+
+    phaseA = function()
+        for _ = 1, CHUNK do
+            linkIndex = linkIndex + 1
+            if linkIndex > ns.CHAIN_LENGTH then
+                phaseB()
+                return
+            end
+            ring.chain[linkIndex] = createChainLink(ring, ring.chain[linkIndex - 1])
+        end
+        C_Timer.After(0, phaseA)
     end
-    ring.chain = chain
-    return true
+
+    phaseB = function()
+        local stop = groupIndex - CHUNK
+        if stop < 1 then stop = 1 end
+        for k = groupIndex - 1, stop, -1 do
+            addBleedGroup(ring, ring.chain[k])
+        end
+        groupIndex = stop
+        if groupIndex > 1 then
+            C_Timer.After(0, phaseB)
+        else
+            ring.chainReady = true
+            reanchorTails(ring)
+            if onComplete then onComplete() end
+        end
+    end
+
+    phaseA()
 end
 
 local unitSet   = {}
 local freeLinks = {}
 
 local function bindChain(ring, units, n)
-    if not ring.chain then return end
+    if not ring.chain or not ring.chainReady then return end
 
     wipe(unitSet)
     for k = 1, n do unitSet[units[k]] = true end
@@ -292,21 +335,17 @@ local function createWindow(ring, level)
 
     local tail = createSubFrame(clip, level + 1, TAIL_TEMPLATE)
     tail:SetSize(size, size)
-    local lastLink = ring.chain and ring.chain[#ring.chain]
-    if lastLink then
-        tail:SetPoint("TOPLEFT", lastLink, "TOPRIGHT", 0, 0)
-    else
-        tail:SetPoint("TOPLEFT", ring.frame, "TOPLEFT", 0, 0)
-    end
+    tail:SetPoint("TOPLEFT", ring.frame, "TOPLEFT", 0, 0)
     return clip, tail
 end
 
-local function createRing(bleed, index)
+local function createRingShell(bleed, index)
     local size = ns.db.size
     local base = root:GetFrameLevel()
     local ring = {
         bleed = bleed, pictures = {}, separators = {},
         unitOf = {}, containerOf = {},
+        chainReady = false,
     }
 
     ring.frame = CreateFrame("Frame", nil, root)
@@ -314,18 +353,12 @@ local function createRing(bleed, index)
     ring.frame:SetPoint("TOPLEFT", root, "TOPLEFT", (index - 1) * (size + ns.db.spacing), 0)
     ring.frame:SetFrameLevel(base + 1)
 
-    local ok, err = pcall(createChain, ring)
-    if not ok then
-        ns:Debug("chain creation failed: %s", tostring(err))
-        ring.chain = nil
-    end
-
-    createDisc(ring.frame, "BACKGROUND", size + OUTLINE * 2, 0, 0, 0, 0.6)
+    ring.bgDisc = createDisc(ring.frame, "BACKGROUND", size + OUTLINE * 2, 0, 0, 0, 0.6)
 
     local unlitFrame = createSubFrame(ring.frame, base + 2)
     unlitFrame:SetAllPoints()
     local empty = ns.db.emptyColor
-    createDisc(unlitFrame, "ARTWORK", size, empty[1], empty[2], empty[3], empty[4])
+    ring.unlitDisc = createDisc(unlitFrame, "ARTWORK", size, empty[1], empty[2], empty[3], empty[4])
 
     ring.arcClip, ring.arcTail = createWindow(ring, base + 3)
 
@@ -339,7 +372,7 @@ local function createRing(bleed, index)
     local iconSize = math.max(8, size - 2 * ns.db.ringWidth - OUTLINE * 4)
     ring.iconFrame = createSubFrame(ring.frame, base + 10)
     ring.iconFrame:SetAllPoints()
-    createDisc(ring.iconFrame, "BACKGROUND", iconSize + OUTLINE * 4, 0, 0, 0, 1)
+    ring.iconBgDisc = createDisc(ring.iconFrame, "BACKGROUND", iconSize + OUTLINE * 4, 0, 0, 0, 1)
 
     ring.icon = ring.iconFrame:CreateTexture(nil, "ARTWORK")
     ring.icon:SetPoint("CENTER")
@@ -394,8 +427,9 @@ local function paintPictures(ring, n)
 end
 
 local function showLive(ring, live)
-    ring.arcClip:SetShown(live)
-    ring.labelClip:SetShown(live)
+    local ready = ring.chainReady
+    ring.arcClip:SetShown(live and ready)
+    ring.labelClip:SetShown(live and ready)
     ring.previewFrame:SetShown(not live)
     ring.previewLabel:SetShown(not live)
 end
@@ -410,7 +444,7 @@ local function createFrames()
     root:SetClampedToScreen(true)
 
     for i, bleed in ipairs(ns.BLEEDS) do
-        rings[i] = createRing(bleed, i)
+        rings[i] = createRingShell(bleed, i)
     end
 
     anchor = CreateFrame("Frame", nil, root)
@@ -437,6 +471,10 @@ local function createFrames()
     anchor.label:SetText("RBT (drag)")
 
     applyPosition()
+
+    for _, ring in ipairs(rings) do
+        buildChainAsync(ring, nil)
+    end
 end
 
 local function render()
@@ -483,9 +521,132 @@ function M:Refresh()
     self:Render()
 end
 
+function M:Resize()
+    if not root then
+        createFrames()
+        self:Render()
+        return
+    end
+
+    local size     = ns.db.size
+    local spacing  = ns.db.spacing
+    local iconSize = math.max(8, size - 2 * ns.db.ringWidth - OUTLINE * 4)
+    local fontSize = math.max(9, math.floor(size * 0.26))
+    local font     = GameFontHighlight:GetFont()
+
+    for i, ring in ipairs(rings) do
+        ring.frame:SetSize(size, size)
+        ring.frame:ClearAllPoints()
+        ring.frame:SetPoint("TOPLEFT", root, "TOPLEFT", (i - 1) * (size + spacing), 0)
+
+        if ring.bgDisc then
+            ring.bgDisc.tex:SetSize(size + OUTLINE * 2, size + OUTLINE * 2)
+        end
+        if ring.unlitDisc then
+            ring.unlitDisc.tex:SetSize(size, size)
+        end
+        if ring.iconBgDisc then
+            ring.iconBgDisc.tex:SetSize(iconSize + OUTLINE * 4, iconSize + OUTLINE * 4)
+        end
+        if ring.icon then
+            ring.icon:SetSize(iconSize, iconSize)
+        end
+
+        for k = 1, 2 do
+            if ring.preview[k] then
+                ring.preview[k].tex:SetSize(size, size)
+            end
+        end
+        placeArc(ring.preview, ring.frame, 0)
+        ring.previewLabel:SetFont(font, fontSize, "OUTLINE")
+        placeLabel(ring.previewLabel, ring.frame, 0)
+
+        for q, picture in pairs(ring.pictures) do
+            for k = 1, 2 do
+                picture.arc[k].tex:SetSize(size, size)
+            end
+            local x = pictureX(q)
+            placeArc(picture.arc, ring.arcTail, x)
+            placeLabel(picture.label, ring.labelTail, x)
+            picture.label:SetFont(font, fontSize, "OUTLINE")
+        end
+    end
+
+    root:SetSize(rootSize())
+    applyPosition()
+    self:Render()
+end
+
+function M:Repaint()
+    for _, ring in ipairs(rings) do
+        ring.shownN = nil
+    end
+    self:Render()
+end
+
+local rebuildInProgress = false
+local rebuildPending = false
+
+local function finalizeRebuild()
+    rebuildInProgress = false
+    if rebuildPending then
+        rebuildPending = false
+        M:Rebuild()
+    end
+end
+
+function M:Rebuild()
+    if not root then
+        createFrames()
+        self:Render()
+        return
+    end
+
+    if rebuildInProgress then
+        rebuildPending = true
+        return
+    end
+    rebuildInProgress = true
+
+    for _, ring in ipairs(rings) do
+        if ring.frame then
+            ring.frame:Hide()
+            ring.frame:SetParent(nil)
+        end
+    end
+    wipe(rings)
+
+    for i, bleed in ipairs(ns.BLEEDS) do
+        rings[i] = createRingShell(bleed, i)
+    end
+
+    root:SetSize(rootSize())
+    applyPosition()
+    self:Render()
+
+    local pending = #rings
+    if pending == 0 then
+        finalizeRebuild()
+        return
+    end
+
+    for _, ring in ipairs(rings) do
+        buildChainAsync(ring, function()
+            pending = pending - 1
+            if pending <= 0 then
+                self:Render()
+                finalizeRebuild()
+            end
+        end)
+    end
+end
+
 function M:OnPlayerLogin()
     if not HAS_AURA_CONTAINERS then
         ns:Print("this client has no AuraContainer support; rings will never fill.")
+    end
+    if not TAIL_TEMPLATE then
+        ns:Print("warning: DisableUntrustedLayoutScriptsTemplate not found; using plain frame.")
     end
     createFrames()
     self:Render()

@@ -11,18 +11,22 @@ ns.BLEEDS = {
 ns.ASSASSINATION_SPEC_ID = 259
 
 local defaults = {
-    locked      = true,
-    x           = nil,
-    y           = nil,
-    size        = 64,
-    spacing     = 12,
-    ringWidth   = 5,
-    segmentGap  = 4,
-    maxSegments = 20,
-    fillColor   = { 1, 0.15, 0.15, 1 },
-    emptyColor  = { 1, 1, 1, 0.85 },
-    combatOnly  = true,
-    debug       = false,
+    locked       = true,
+    x            = nil,
+    y            = nil,
+    size         = 64,
+    spacing      = 12,
+    ringWidth    = 5,
+    segmentGap   = 4,
+    maxSegments  = 20,
+    fillColor    = { 1, 0.15, 0.15, 1 },
+    emptyColor   = { 1, 1, 1, 0.85 },
+    combatOnly   = true,
+    debug        = false,
+    minimapHide  = false,
+    minimapAngle = 45,
+    optionsX     = nil,
+    optionsY     = nil,
 }
 
 local function applyDefaults(dst, src)
@@ -37,9 +41,9 @@ local function applyDefaults(dst, src)
 end
 
 function ns:InitializeDB()
-    if type(RBTDB) ~= "table" then RBTDB = {} end
-    applyDefaults(RBTDB, defaults)
-    self.db = RBTDB
+    _G.RBTDB = _G.RBTDB or {}
+    applyDefaults(_G.RBTDB, defaults)
+    self.db = _G.RBTDB
 end
 
 function ns:RegisterModule(id, mod)
@@ -56,6 +60,15 @@ end
 
 function ns:RefreshAll()
     self:CallModules("Refresh")
+end
+
+function ns:ReloadDisplay()
+    local display = self.modules.display
+    if display and display.Rebuild then
+        display:Rebuild()
+    else
+        self:RefreshAll()
+    end
 end
 
 function ns:Print(msg)
@@ -103,10 +116,11 @@ function ns:ResetPosition()
 end
 
 local NUMERIC_SETTINGS = {
-    size        = { min = 16, max = 128 },
-    gap         = { key = "segmentGap", min = 0, max = 20 },
-    width       = { key = "ringWidth", min = 1, max = 20 },
-    max         = { key = "maxSegments", min = 1, max = 40, live = true },
+    size  = { min = 16, max = 128, rebuild = true },
+    gap   = { key = "segmentGap", min = 0, max = 20, rebuild = true },
+    width = { key = "ringWidth", min = 1, max = 20, rebuild = true },
+    space = { key = "spacing", min = 0, max = 40, rebuild = true },
+    max   = { key = "maxSegments", min = 1, max = 40 },
 }
 
 SLASH_RBT1 = "/rbt"
@@ -120,12 +134,20 @@ SlashCmdList["RBT"] = function(msg)
     elseif cmd == "unlock" then
         ns:SetLocked(false)
     elseif cmd == "" then
-        ns:SetLocked(not ns.db.locked)
+        local opts = ns.modules.options
+        if opts and opts.Open then
+            opts:Open()
+        else
+            ns:SetLocked(not ns.db.locked)
+        end
     elseif cmd == "reset" then
         ns:ResetPosition()
     elseif cmd == "combat" then
         ns.db.combatOnly = not ns.db.combatOnly
-        ns.modules.tracker:RefreshUnits()
+        local tracker = ns.modules.tracker
+        if tracker and tracker.RefreshUnits then
+            tracker:RefreshUnits()
+        end
         ns:Print(ns.db.combatOnly and "showing enemies in combat only" or "showing every enemy nameplate")
     elseif cmd == "debug" then
         ns.db.debug = not ns.db.debug
@@ -137,13 +159,13 @@ SlashCmdList["RBT"] = function(msg)
             return
         end
         ns.db[key] = value
-        if setting.live then
-            ns:RefreshAll()
-            ns:Print(("%s set to %s"):format(cmd, tostring(value)))
+        if setting.rebuild then
+            ns:ReloadDisplay()
         else
-            ns:Print(("%s set to %s - /reload to apply"):format(cmd, tostring(value)))
+            ns:RefreshAll()
         end
+        ns:Print(("%s set to %s"):format(cmd, tostring(value)))
     else
-        ns:Print("commands: lock | unlock | reset | combat | size <px> | width <px> | gap <deg> | max <n> | debug")
+        ns:Print("commands: lock | unlock | reset | combat | size <px> | width <px> | gap <deg> | space <px> | max <n> | debug")
     end
 end

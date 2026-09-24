@@ -1,7 +1,7 @@
 ## Interface: 120100, 120105
 ## Title: RBT - Rogues Bleed Tracker
 ## Notes: Garrote and Rupture rings for Assassination Rogues: fills clockwise as more of your engaged enemies bleed, with a bleeding/engaged count.
-## Version: 1.0.0
+## Version: 1.1.0
 ## X-Flavor: Retail
 ## X-License: GPL-2.0
 ## SavedVariables: RBTDB
@@ -10,3 +10,5 @@
 Init.lua
 Tracker.lua
 Display.lua
+Minimap.lua
+Options.lua
