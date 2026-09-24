@@ -204,7 +204,6 @@ local function addBleedGroup(ring, container)
     })
 end
 
--- Reancla los tails al final de la cadena.
 local function reanchorTails(ring)
     local lastLink = ring.chain and ring.chain[#ring.chain]
     if not lastLink then return end
@@ -214,7 +213,6 @@ local function reanchorTails(ring)
     ring.labelTail:SetPoint("TOPLEFT", lastLink, "TOPRIGHT", 0, 0)
 end
 
--- Construccion asincrona: reparte el trabajo en chunks de CHUNK por frame.
 local function buildChainAsync(ring, onComplete)
     if not HAS_AURA_CONTAINERS then
         ring.chain = nil
@@ -230,7 +228,6 @@ local function buildChainAsync(ring, onComplete)
     local linkIndex  = 0
     local groupIndex = ns.CHAIN_LENGTH + 1
 
-    -- Forward declaration: phaseA necesita ver phaseB
     local phaseA, phaseB
 
     phaseA = function()

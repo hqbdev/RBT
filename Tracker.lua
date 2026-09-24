@@ -168,9 +168,6 @@ local function updateEligibility()
     setCombat(UnitAffectingCombat("player"))
 end
 
--- UNIT_FLAGS y UNIT_THREAT_LIST_UPDATE se disparan para TODAS las unidades
--- del juego (jugadores, mascotas, totems, NPCs...). Filtramos para que solo
--- los nameplates nos hagan reescanear.
 local function isPlateUnit(unit)
     if type(unit) ~= "string" then return false end
     return unit:match("^nameplate%d+$") ~= nil

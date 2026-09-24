@@ -62,7 +62,6 @@ function ns:RefreshAll()
     self:CallModules("Refresh")
 end
 
--- Reconstruye el display (cambio de geometría). Cae a RefreshAll si el módulo no lo soporta.
 function ns:ReloadDisplay()
     local display = self.modules.display
     if display and display.Rebuild then

@@ -5,15 +5,50 @@ ns:RegisterModule("minimap", M)
 
 local ICON      = 7195162  -- Garrote
 local BUTTON_SZ = 32
-local RADIUS    = 100      -- distancia al centro del minimapa (afuera del borde)
+local EDGE_OFFSET = 5
+
+-- Which quadrants are round, per GetMinimapShape(): bottom-right, bottom-left, top-right, top-left.
+local SHAPES = {
+    ["ROUND"]                 = { true,  true,  true,  true  },
+    ["SQUARE"]                = { false, false, false, false },
+    ["CORNER-TOPLEFT"]        = { false, false, false, true  },
+    ["CORNER-TOPRIGHT"]       = { false, false, true,  false },
+    ["CORNER-BOTTOMLEFT"]     = { false, true,  false, false },
+    ["CORNER-BOTTOMRIGHT"]    = { true,  false, false, false },
+    ["SIDE-LEFT"]             = { false, true,  false, true  },
+    ["SIDE-RIGHT"]            = { true,  false, true,  false },
+    ["SIDE-TOP"]              = { false, false, true,  true  },
+    ["SIDE-BOTTOM"]           = { true,  true,  false, false },
+    ["TRICORNER-TOPLEFT"]     = { false, true,  true,  true  },
+    ["TRICORNER-TOPRIGHT"]    = { true,  false, true,  true  },
+    ["TRICORNER-BOTTOMLEFT"]  = { true,  true,  false, true  },
+    ["TRICORNER-BOTTOMRIGHT"] = { true,  true,  true,  false },
+}
 
 local button
 
 local function updatePosition()
     if not button then return end
     local angle = math.rad(ns.db.minimapAngle or 45)
-    local x = math.cos(angle) * RADIUS
-    local y = math.sin(angle) * RADIUS
+    local x, y = math.cos(angle), math.sin(angle)
+
+    local q = 1
+    if x < 0 then q = q + 1 end
+    if y > 0 then q = q + 2 end
+
+    local shape = SHAPES[GetMinimapShape and GetMinimapShape() or "ROUND"] or SHAPES.ROUND
+    local w = Minimap:GetWidth() / 2 + EDGE_OFFSET
+    local h = Minimap:GetHeight() / 2 + EDGE_OFFSET
+
+    if shape[q] then
+        x, y = x * w, y * h
+    else
+        local diagW = math.sqrt(2 * w * w) - 10
+        local diagH = math.sqrt(2 * h * h) - 10
+        x = math.max(-w, math.min(x * diagW, w))
+        y = math.max(-h, math.min(y * diagH, h))
+    end
+
     button:ClearAllPoints()
     button:SetPoint("CENTER", Minimap, "CENTER", x, y)
 end
@@ -24,8 +59,7 @@ local function onDragUpdate()
     local scale = Minimap:GetEffectiveScale()
     local cx, cy = GetCursorPosition()
     cx, cy = cx / scale, cy / scale
-    local angle = math.deg(math.atan2(cy - my, cx - mx))
-    ns.db.minimapAngle = angle
+    ns.db.minimapAngle = math.deg(math.atan2(cy - my, cx - mx)) % 360
     updatePosition()
 end
 
@@ -39,13 +73,11 @@ local function createButton()
     button:RegisterForClicks("AnyUp")
     button:RegisterForDrag("LeftButton", "RightButton")
 
-    -- Borde circular (el "hueco" queda en el centro)
     button.bg = button:CreateTexture(nil, "BACKGROUND")
     button.bg:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
     button.bg:SetSize(54, 54)
     button.bg:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
 
-    -- Icono con máscara circular para no ver las esquinas cuadradas
     button.icon = button:CreateTexture(nil, "BACKGROUND", nil, 1)
     button.icon:SetSize(22, 22)
     button.icon:SetPoint("CENTER", button, "CENTER", 0, 0)
@@ -58,7 +90,6 @@ local function createButton()
     mask:SetAllPoints(button.icon)
     button.icon:AddMaskTexture(mask)
 
-    -- Highlight al pasar el ratón
     button.highlight = button:CreateTexture(nil, "HIGHLIGHT")
     button.highlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
     button.highlight:SetSize(32, 32)
@@ -67,7 +98,7 @@ local function createButton()
 
     button:SetScript("OnClick", function(_, mouseButton)
         ns:Debug("minimap click: %s", tostring(mouseButton))
-            if mouseButton == "LeftButton" then
+        if mouseButton == "LeftButton" then
             local opts = ns.modules.options
             if opts and opts.Toggle then
                 opts:Toggle()
@@ -80,13 +111,16 @@ local function createButton()
     end)
 
     button:SetScript("OnDragStart", function()
+        GameTooltip:Hide()
+        button:LockHighlight()
         button:SetScript("OnUpdate", onDragUpdate)
     end)
     button:SetScript("OnDragStop", function()
         button:SetScript("OnUpdate", nil)
+        button:UnlockHighlight()
     end)
 
-        button:SetScript("OnEnter", function(self)
+    button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine("|cffff3333RBT|r - Rogues Bleed Tracker")
         GameTooltip:AddLine(" ")
@@ -99,13 +133,13 @@ local function createButton()
         GameTooltip:Hide()
     end)
 
+    Minimap:HookScript("OnSizeChanged", updatePosition)
     updatePosition()
 end
 
 function M:Refresh()
     if not button then return end
     button:SetShown(not ns.db.minimapHide)
-    updatePosition()
 end
 
 function M:OnPlayerLogin()

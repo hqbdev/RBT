@@ -100,6 +100,11 @@ Enemies need visible nameplates to be counted.
 - **Event filtering**: `UNIT_FLAGS` and `UNIT_THREAT_LIST_UPDATE` only trigger
   a rescan for `nameplateN` units, not for every unit in the world.
 
+## Collaborators
+
+Thank you to everyone who reached out with feedback, bug reports or code.
+RBT is better because of you.
+
 ## License
 
 GNU General Public License v2.0, see `LICENSE.txt`. You are free to use,

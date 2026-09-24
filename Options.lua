@@ -131,10 +131,6 @@ local function buildPanel()
     panel:SetTitle("RBT - Rogues Bleed Tracker")
     panel:SetTitleOffsets(0, 0)
 
-    -- 🎨 PORTRAIT estilo unit frame de Blizzard:
-    --   1. Ocultamos el Portrait nativo (tiene máscara de tamaño variable).
-    --   2. Montamos uno propio con la MISMA máscara que usa Blizzard
-    --      (TempPortraitAlphaMask) pero con el tamaño exacto del círculo.
     if panel.Portrait then
         panel.Portrait:Hide()
     end
@@ -149,7 +145,6 @@ local function buildPanel()
     port:SetTexture(GARROTE_ICON)
     port:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-    -- Esta es la máscara que usa Blizzard para los retratos circulares
     local mask = portraitFrame:CreateMaskTexture()
     mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask",
                     "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
