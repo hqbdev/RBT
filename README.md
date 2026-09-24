@@ -105,6 +105,8 @@ Enemies need visible nameplates to be counted.
 Thank you to everyone who reached out with feedback, bug reports or code.
 RBT is better because of you.
 
+- [Se7eN-star](https://github.com/Se7eN-star)
+
 ## License
 
 GNU General Public License v2.0, see `LICENSE.txt`. You are free to use,
