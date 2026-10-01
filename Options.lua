@@ -4,7 +4,7 @@ local M = {}
 ns:RegisterModule("options", M)
 
 local PANEL_W  = 580
-local PANEL_H  = 620
+local PANEL_H  = 664
 local ROW_H    = 40
 local HEADER_H = 24
 
@@ -83,6 +83,8 @@ local function createCheckbox(parent, y, label, getter, setter)
     cb:SetScript("OnClick", function(self)
         setter(self:GetChecked() and true or false)
     end)
+    -- Settings can also change via slash commands or the minimap icon.
+    cb:HookScript("OnShow", function(self) self:SetChecked(getter()) end)
     return cb
 end
 
@@ -207,7 +209,16 @@ local function buildPanel()
     y = y - ROW_H - 12
 
     createHeader(content, y, "Appearance")
-    y = y - HEADER_H - 8
+    y = y - HEADER_H - 4
+
+    createCheckbox(content, y, "Invert ring order (Rupture on the left)",
+        function() return ns.db.invertOrder end,
+        function(v)
+            ns.db.invertOrder = v
+            local d = ns.modules.display
+            if d and d.Resize then d:Resize() end
+        end)
+    y = y - ROW_H - 8
 
     createSlider(content, y, "Ring size (px)", 16, 128, 1,
         function() return ns.db.size end,

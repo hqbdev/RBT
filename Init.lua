@@ -16,6 +16,7 @@ local defaults = {
     y            = nil,
     size         = 64,
     spacing      = 12,
+    invertOrder  = false,
     ringWidth    = 5,
     segmentGap   = 4,
     maxSegments  = 20,
@@ -149,6 +150,13 @@ SlashCmdList["RBT"] = function(msg)
             tracker:RefreshUnits()
         end
         ns:Print(ns.db.combatOnly and "showing enemies in combat only" or "showing every enemy nameplate")
+    elseif cmd == "invert" then
+        ns.db.invertOrder = not ns.db.invertOrder
+        local display = ns.modules.display
+        if display and display.Resize then
+            display:Resize()
+        end
+        ns:Print(ns.db.invertOrder and "ring order: Rupture, Garrote" or "ring order: Garrote, Rupture")
     elseif cmd == "debug" then
         ns.db.debug = not ns.db.debug
         ns:Print("debug " .. (ns.db.debug and "on" or "off"))
@@ -166,6 +174,6 @@ SlashCmdList["RBT"] = function(msg)
         end
         ns:Print(("%s set to %s"):format(cmd, tostring(value)))
     else
-        ns:Print("commands: lock | unlock | reset | combat | size <px> | width <px> | gap <deg> | space <px> | max <n> | debug")
+        ns:Print("commands: lock | unlock | reset | combat | invert | size <px> | width <px> | gap <deg> | space <px> | max <n> | debug")
     end
 end

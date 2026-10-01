@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+- Invert ring order: show Rupture on the left and Garrote on the right, each
+  icon keeping its own ring. Toggle it with the new checkbox under Appearance
+  in the options window or with `/rbt invert`. Applies live.
+
+### Fixed
+- Options checkboxes now show the current setting when the window is reopened
+  after it was changed elsewhere (minimap right-click, slash commands).
+
 ## 1.1.0
 
 ### Added

@@ -301,6 +301,11 @@ local function rootSize()
     return #ns.BLEEDS * ns.db.size + (#ns.BLEEDS - 1) * ns.db.spacing, ns.db.size
 end
 
+local function ringX(index)
+    local slot = ns.db.invertOrder and #ns.BLEEDS - index + 1 or index
+    return (slot - 1) * (ns.db.size + ns.db.spacing)
+end
+
 local function applyPosition()
     if not ns.db.x or not ns.db.y then
         ns.db.x, ns.db.y = GetScreenWidth() / 2, GetScreenHeight() / 2 - 150
@@ -350,7 +355,7 @@ local function createRingShell(bleed, index)
 
     ring.frame = CreateFrame("Frame", nil, root)
     ring.frame:SetSize(size, size)
-    ring.frame:SetPoint("TOPLEFT", root, "TOPLEFT", (index - 1) * (size + ns.db.spacing), 0)
+    ring.frame:SetPoint("TOPLEFT", root, "TOPLEFT", ringX(index), 0)
     ring.frame:SetFrameLevel(base + 1)
 
     ring.bgDisc = createDisc(ring.frame, "BACKGROUND", size + OUTLINE * 2, 0, 0, 0, 0.6)
@@ -529,7 +534,6 @@ function M:Resize()
     end
 
     local size     = ns.db.size
-    local spacing  = ns.db.spacing
     local iconSize = math.max(8, size - 2 * ns.db.ringWidth - OUTLINE * 4)
     local fontSize = math.max(9, math.floor(size * 0.26))
     local font     = GameFontHighlight:GetFont()
@@ -537,7 +541,7 @@ function M:Resize()
     for i, ring in ipairs(rings) do
         ring.frame:SetSize(size, size)
         ring.frame:ClearAllPoints()
-        ring.frame:SetPoint("TOPLEFT", root, "TOPLEFT", (i - 1) * (size + spacing), 0)
+        ring.frame:SetPoint("TOPLEFT", root, "TOPLEFT", ringX(i), 0)
 
         if ring.bgDisc then
             ring.bgDisc.tex:SetSize(size + OUTLINE * 2, size + OUTLINE * 2)

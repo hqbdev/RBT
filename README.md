@@ -51,6 +51,7 @@ style of BugSack, WeakAuras and other modern addons. It has three sections:
 
 **Appearance**
 
+- Invert ring order — show Rupture on the left and Garrote on the right.
 - Ring size (px) — 16 to 128.
 - Ring width (px) — 1 to 20.
 - Spacing between rings (px) — 0 to 40.
@@ -70,6 +71,7 @@ The window covers everything, but power users can still use chat commands:
 | `/rbt lock` / `/rbt unlock` | Lock / unlock the frame |
 | `/rbt reset` | Move the frame back to its default position |
 | `/rbt combat` | Toggle between enemies in combat and all hostile nameplates |
+| `/rbt invert` | Swap the two rings: Rupture on the left, Garrote on the right (toggle) |
 | `/rbt size <px>` | Ring diameter, 16-128 |
 | `/rbt width <px>` | Ring thickness, 1-20 |
 | `/rbt gap <deg>` | Gap between segments, 0-20 |
